@@ -1,0 +1,39 @@
+name: build-wince
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pobierz CeGCC (arm-mingw32ce)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq unzip
+          curl -L -o cegcc.tar.gz \
+            https://github.com/xianying520/wince-carlife/releases/download/cegcc-arm/cegcc-arm-mingw32ce.tar.gz
+          tar xzf cegcc.tar.gz
+
+      - name: Znajdź kompilator
+        run: |
+          BIN=$(dirname $(find . -maxdepth 4 -name 'arm-mingw32ce-gcc' -type f | head -1))
+          echo "CEGCC_BIN=$PWD/$BIN" >> $GITHUB_ENV
+          "$PWD/$BIN/arm-mingw32ce-gcc" --version
+
+      - name: Kompilacja hud.exe
+        run: |
+          export PATH="$CEGCC_BIN:$PATH"
+          arm-mingw32ce-gcc -O2 -Wall -DUNICODE -D_UNICODE -o hud.exe hud.c \
+            -lcoredll \
+            -Wl,-subsystem,windows
+          ls -la hud.exe
+
+      - name: Udostępnij plik
+        uses: actions/upload-artifact@v4
+        with:
+          name: hud-exe
+          path: hud.exe
